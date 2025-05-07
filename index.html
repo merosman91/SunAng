@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>حاسبة متقدمة للزوايا الشمسية</title>
+    <title>حاسبة الزوايا الشمسية المتكاملة</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/suncalc@1.8.0/suncalc.min.js"></script>
     <style>
         :root {
             --primary: #3498db;
             --secondary: #2ecc71;
+            --whatsapp: #25D366;
             --warning: #f39c12;
             --danger: #e74c3c;
             --dark: #2c3e50;
@@ -32,12 +33,13 @@
             padding: 20px;
         }
         header {
-            background: var(--dark);
+            background: linear-gradient(135deg, var(--dark), #1a1a2e);
             color: white;
-            padding: 20px 0;
+            padding: 25px 0;
             border-radius: 10px 10px 0 0;
             text-align: center;
             margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         h1 {
             font-size: 28px;
@@ -47,6 +49,7 @@
             max-width: 800px;
             margin: 0 auto;
             font-size: 16px;
+            opacity: 0.9;
         }
         .main-btn {
             background: var(--primary);
@@ -74,6 +77,13 @@
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
+        }
+        .whatsapp-btn {
+            background: var(--whatsapp);
+            margin-top: 10px;
+        }
+        .whatsapp-btn:hover {
+            background: #128C7E;
         }
         .loading {
             display: none;
@@ -207,6 +217,21 @@
             font-weight: bold;
             color: var(--dark);
         }
+        .signature {
+            text-align: center;
+            margin-top: 30px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .signature a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+        .signature a:hover {
+            text-decoration: underline;
+        }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -303,6 +328,15 @@
                     </div>
                 </div>
             </div>
+
+            <button id="share-btn" class="main-btn whatsapp-btn" onclick="shareOnWhatsApp()" style="display: none;">
+                <i class="fab fa-whatsapp"></i> مشاركة النتائج عبر واتساب
+            </button>
+
+            <div class="signature">
+                <p>تم تصميم وتطوير هذا التطبيق بواسطة <strong>ميرغني أبوالقاسم عثمان</strong></p>
+                <p>للتواصل: <a href="mailto:merghanigasimosman@gmail.com">merghanigasimosman@gmail.com</a></p>
+            </div>
         </div>
 
         <footer>
@@ -314,6 +348,7 @@
         // المتغيرات العامة
         let userLocation = null;
         let calculationTime = null;
+        let currentResults = null;
 
         // الدالة الرئيسية للحصول على الموقع والحساب
         function getLocationAndCalculate() {
@@ -321,12 +356,14 @@
             const loading = document.getElementById("loading");
             const locationInfo = document.getElementById("location-info");
             const resultsSection = document.getElementById("results-section");
+            const shareBtn = document.getElementById("share-btn");
 
             // إعادة تعيين الواجهة
             btn.disabled = true;
             loading.style.display = "block";
             locationInfo.innerHTML = "";
             resultsSection.style.display = "none";
+            shareBtn.style.display = "none";
 
             // التحقق من دعم المتصفح لتحديد الموقع
             if (navigator.geolocation) {
@@ -344,12 +381,13 @@
                         showLocationInfo(userLocation);
                         
                         // حساب الزوايا الشمسية
-                        calculateSolarAngles(userLocation.lat, userLocation.lon);
+                        currentResults = calculateSolarAngles(userLocation.lat, userLocation.lon);
                         
                         // إظهار النتائج
                         btn.disabled = false;
                         loading.style.display = "none";
                         resultsSection.style.display = "block";
+                        shareBtn.style.display = "flex";
                     },
                     (error) => {
                         // فشل الحصول على الموقع
@@ -450,8 +488,18 @@
             updateVisualizations(elevation, azimuth);
             
             // توليد التوصيات العملية
-            generateSolarRecommendations(lat, elevation, azimuth);
-            generateAgriculturalRecommendations(lat, elevation, azimuth);
+            const solarRec = generateSolarRecommendations(lat, elevation, azimuth);
+            const agriRec = generateAgriculturalRecommendations(lat, elevation, azimuth);
+            
+            return {
+                elevation,
+                azimuth,
+                zenith,
+                solarRecommendations: solarRec,
+                agriculturalRecommendations: agriRec,
+                location: { lat, lon },
+                time: now
+            };
         }
 
         // تحديث التصور البصري للزوايا
@@ -492,6 +540,12 @@
             document.getElementById("panel-angle").textContent = `الزاوية المثالية لتركيب الألواح: ${panelAngle}°`;
             document.getElementById("panel-direction").textContent = `الاتجاه الأمثل: ${panelDirection}`;
             document.getElementById("energy-efficiency").textContent = `كفاءة الطاقة المتوقعة اليوم: ${efficiency}%`;
+            
+            return {
+                panelAngle,
+                panelDirection,
+                efficiency
+            };
         }
 
         // توليد توصيات زراعية
@@ -521,6 +575,12 @@
             document.getElementById("suitable-crops").textContent = crops;
             document.getElementById("irrigation-time").textContent = `الوقت الأمثل للري: ${irrigationTime}`;
             document.getElementById("sun-exposure").textContent = `ساعات التعرض للشمس اليوم: ${exposureHours} ساعة`;
+            
+            return {
+                crops,
+                irrigationTime,
+                exposureHours
+            };
         }
 
         // تحديد الفصل بناءً على خط العرض والتاريخ
@@ -535,6 +595,54 @@
                 return "صيف";
             }
         }
+
+        // مشاركة النتائج عبر واتساب
+        function shareOnWhatsApp() {
+            if (!currentResults) return;
+            
+            const timeStr = currentResults.time.toLocaleTimeString('ar-EG');
+            const dateStr = currentResults.time.toLocaleDateString('ar-EG');
+            
+            const message = `
+                🌞 *نتائج حساب الزوايا الشمسية* 🌞
+                
+                📍 *الموقع*:
+                خط العرض: ${currentResults.location.lat.toFixed(6)}°
+                خط الطول: ${currentResults.location.lon.toFixed(6)}°
+                
+                📊 *الزوايا الشمسية*:
+                زاوية الارتفاع: ${currentResults.elevation}°
+                الزاوية السمتية: ${currentResults.azimuth}°
+                زاوية السمت الشمسي: ${currentResults.zenith}°
+                
+                ☀️ *توصيات الطاقة الشمسية*:
+                زاوية التركيب المثالية: ${currentResults.solarRecommendations.panelAngle}°
+                الاتجاه الأمثل: ${currentResults.solarRecommendations.panelDirection}
+                كفاءة الطاقة المتوقعة: ${currentResults.solarRecommendations.efficiency}%
+                
+                🌱 *توصيات زراعية*:
+                المحاصيل المناسبة: ${currentResults.agriculturalRecommendations.crops}
+                وقت الري الأمثل: ${currentResults.agriculturalRecommendations.irrigationTime}
+                ساعات التعرض للشمس: ${currentResults.agriculturalRecommendations.exposureHours} ساعة
+                
+                🕒 *وقت الحساب*: ${timeStr} - ${dateStr}
+                
+                تم الحصول على هذه النتائج عبر تطبيق حساب الزوايا الشمسية
+                الذي طوره ميرغني أبوالقاسم عثمان
+                للتواصل: merghanigasimosman@gmail.com
+            `;
+            
+            const encodedMessage = encodeURIComponent(message);
+            const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+            
+            window.open(whatsappUrl, '_blank');
+        }
+
+        // تأثيرات عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.querySelector('.container');
+            container.style.animation = 'fadeIn 0.5s ease-out';
+        });
     </script>
 </body>
-    </html>
+                            </html>
