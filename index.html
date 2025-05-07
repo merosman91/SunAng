@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حاسبة الزاوية الشمسية - التحديد التلقائي</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/suncalc@1.8.0/suncalc.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f5f7fa;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+            transition: background 0.3s;
+            width: 100%;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        #location-info {
+            margin: 15px 0;
+            padding: 10px;
+            background: #ecf0f1;
+            border-radius: 5px;
+            text-align: right;
+        }
+        #solar-results {
+            margin-top: 20px;
+            text-align: right;
+            display: none;
+        }
+        .result-card {
+            background: #e8f4fc;
+            border-left: 4px solid #3498db;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .loading {
+            display: none;
+            margin: 10px 0;
+        }
+        .fa-spin {
+            margin-left: 10px;
+        }
+        .error {
+            color: #e74c3c;
+            padding: 10px;
+            background: #fdecea;
+            border-radius: 5px;
+        }
+        .success {
+            color: #27ae60;
+        }
+        .coordinates {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        .coordinate-box {
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 5px;
+            flex: 1;
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-sun"></i> حاسبة الزاوية الشمسية</h1>
+        <p>اضغط على الزر لاحتساب زاوية الشمس بناءً على موقعك الحالي</p>
+        
+        <button id="calculate-btn" onclick="getLocationAndCalculate()">
+            <i class="fas fa-calculator"></i> احسب الزاوية الشمسية
+        </button>
+        
+        <div id="loading" class="loading">
+            <i class="fas fa-spinner fa-spin"></i> جاري تحديد الموقع...
+        </div>
+        
+        <div id="location-info"></div>
+        
+        <div id="solar-results">
+            <h2><i class="fas fa-chart-line"></i> النتائج:</h2>
+            <div class="result-card">
+                <strong><i class="fas fa-angle-up"></i> زاوية الارتفاع الشمسي:</strong> <span id="elevation">--</span>°
+            </div>
+            <div class="result-card">
+                <strong><i class="fas fa-compass"></i> الزاوية السمتية (الاتجاه):</strong> <span id="azimuth">--</span>°
+            </div>
+            <div class="result-card">
+                <strong><i class="fas fa-angle-down"></i> زاوية السمت الشمسي:</strong> <span id="zenith">--</span>°
+            </div>
+            <div class="result-card">
+                <strong><i class="fas fa-clock"></i> وقت الحساب:</strong> <span id="calculation-time">--</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getLocationAndCalculate() {
+            const btn = document.getElementById("calculate-btn");
+            const loading = document.getElementById("loading");
+            const locationInfo = document.getElementById("location-info");
+            const solarResults = document.getElementById("solar-results");
+
+            btn.disabled = true;
+            loading.style.display = "block";
+            locationInfo.innerHTML = "";
+            solarResults.style.display = "none";
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        const accuracy = position.coords.accuracy;
+                        
+                        locationInfo.innerHTML = `
+                            <p class="success"><i class="fas fa-check-circle"></i> <strong>تم تحديد موقعك بنجاح</strong></p>
+                            <div class="coordinates">
+                                <div class="coordinate-box">
+                                    <i class="fas fa-map-marker-alt"></i> <strong>خط العرض:</strong>
+                                    <p>${lat.toFixed(6)}°</p>
+                                </div>
+                                <div class="coordinate-box">
+                                    <i class="fas fa-map-marker-alt"></i> <strong>خط الطول:</strong>
+                                    <p>${lon.toFixed(6)}°</p>
+                                </div>
+                            </div>
+                            <p style="font-size: 0.8em; margin-top: 5px;">دقة الموقع: ±${Math.round(accuracy)} متر</p>
+                        `;
+                        
+                        calculateSolarAngles(lat, lon);
+                        btn.disabled = false;
+                        loading.style.display = "none";
+                    },
+                    (error) => {
+                        let errorMessage;
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMessage = "تم رفض الوصول إلى الموقع. يُرجى تفعيله يدويًا.";
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMessage = "معلومات الموقع غير متوفرة.";
+                                break;
+                            case error.TIMEOUT:
+                                errorMessage = "انتهت مهلة طلب الموقع.";
+                                break;
+                            default:
+                                errorMessage = "حدث خطأ غير معروف أثناء تحديد الموقع.";
+                        }
+                        locationInfo.innerHTML = `<p class="error"><i class="fas fa-exclamation-triangle"></i> ${errorMessage}</p>`;
+                        btn.disabled = false;
+                        loading.style.display = "none";
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                locationInfo.innerHTML = `<p class="error"><i class="fas fa-exclamation-triangle"></i> المتصفح لا يدعم تحديد الموقع التلقائي.</p>`;
+                btn.disabled = false;
+                loading.style.display = "none";
+            }
+        }
+
+        function calculateSolarAngles(lat, lon) {
+            const now = new Date();
+            const solarPos = SunCalc.getPosition(now, lat, lon);
+            
+            // تحويل الزوايا من راديان إلى درجات
+            const elevation = (solarPos.altitude * 180 / Math.PI).toFixed(2);
+            const azimuth = (solarPos.azimuth * 180 / Math.PI + 180).toFixed(2); // تعديل ليكون بين 0-360°
+            const zenith = (90 - parseFloat(elevation)).toFixed(2);
+            
+            // تنسيق الوقت
+            const timeString = now.toLocaleTimeString('ar-EG');
+            const dateString = now.toLocaleDateString('ar-EG', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            
+            // عرض النتائج
+            document.getElementById("elevation").textContent = elevation;
+            document.getElementById("azimuth").textContent = azimuth;
+            document.getElementById("zenith").textContent = zenith;
+            document.getElementById("calculation-time").textContent = `${timeString} - ${dateString}`;
+            
+            document.getElementById("solar-results").style.display = "block";
+        }
+
+        // إضافة تأثير عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.querySelector('.container');
+            container.style.animation = 'fadeIn 0.5s ease-out';
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+            `;
+            document.head.appendChild(style);
+        });
+    </script>
+</body>
+  </html>
